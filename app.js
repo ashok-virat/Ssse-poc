@@ -18,7 +18,7 @@ let setRouter = (app) => {
             // Use writeHead with a capital 'H'
             response.writeHead(200, headers);
 
-            const data = `data: ${JSON.stringify('connection established')}\n\n`;
+            const data = `data: ${JSON.stringify('Ashok - POC - every 1.6 min it will receive the events')}\n\n`;
             response.write(data);
             setInterval(() => {
                 response.write(data);
