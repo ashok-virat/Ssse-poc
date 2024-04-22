@@ -1,60 +1,66 @@
-const express = require('express');
+const express = require("express");
 const app = express();
 const port = 3000;
 
 let clients = [];
 
-let setRouter = (app) => {
-    let baseUrl = '/blogs';
-    const eventsHandler = async (request, response, next) => {
-        console.log(response);
-        try {
-            const headers = {
-                'Content-Type': 'text/event-stream',
-                'Connection': 'keep-alive',
-                'Cache-Control': 'no-cache'
-            };
+// WebSocket server (outside of the serverless function)
+const WebSocket = require('ws');
 
-            // Use writeHead with a capital 'H'
-            response.writeHead(200, headers);
+const wss = new WebSocket.Server({ port: 8080 });
 
-            const data = `data: ${JSON.stringify('connection established')}\n\n`;
-            response.write(data);
-            // setInterval(() => {
-            //     response.write(data);
-            // }, 100000);
+wss.on('connection', function connection(ws) {
+    console.log('Client connected');
 
-
-            const clientId = Date.now();
-
-            const newClient = {
-                id: clientId,
-                response
-            };
-
-            clients.push(newClient);
-
-            request.on('close', () => {
-                console.log(`${clientId} Connection closed`);
-                clients = clients.filter(client => client.id !== clientId);
-            });
-        } catch (error) {
-            next(error);
-        }
-    };
-
-    app.get(baseUrl + '/events', eventsHandler);
-};
-
-// Use the setRouter function
-setRouter(app);
-
-// Define a route
-app.get('/', (req, res) => {
-    res.send('Hello, World!');
+    ws.on('message', function incoming(message) {
+        console.log('Received: %s', typeof message);
+        // Broadcast message to all clients
+        wss.clients.forEach(function each(client) {
+            client.send(JSON.stringify(message));
+        });
+    });
 });
 
-// Start the server
-app.listen(port, () => {
-    console.log(`Server is running at http://localhost:${port}`);
+
+const eventsHandler = (req, res) => {
+    try {
+        const headers = {
+            "Content-Type": "text/event-stream",
+            Connection: "keep-alive",
+            "Cache-Control": "no-cache",
+        };
+
+        res.writeHead(200, headers);
+
+        const data = `data: ${JSON.stringify("connection established")}\n\n`;
+        res.write(data);
+
+        const clientId = Date.now();
+
+        const newClient = {
+            id: clientId,
+            response: res,
+        };
+
+        clients.push(newClient);
+
+        req.on("close", () => {
+            console.log(`${clientId} Connection closed`);
+            clients = clients.filter((client) => client.id !== clientId);
+        });
+    } catch (error) {
+        console.error("Error in eventsHandler:", error);
+        res.status(500).send("Internal Server Error");
+    }
+};
+
+app.get("/blogs", (req, res) => {
+    res.send('route added')
+});
+
+app.get("/blogs/events", eventsHandler);
+
+// Define a route
+app.get("/", (req, res) => {
+    res.send("Hello, World!");
 });
